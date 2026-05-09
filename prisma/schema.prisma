@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model annees_academiques {
+  id              Int               @id @default(autoincrement())
+  libelle         String            @unique @db.VarChar(20)
+  date_debut      DateTime          @db.Date
+  date_fin        DateTime          @db.Date
+  active          Boolean?          @default(false)
+  groupes         groupes[]
+  sequences_cours sequences_cours[]
+}
+
+model etudiants {
+  id        Int     @id @default(autoincrement())
+  user_id   Int     @unique
+  matricule String  @unique @db.VarChar(50)
+  groupe_id Int
+  groupes   groupes @relation(fields: [groupe_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_etudiants_groupe")
+  users     users   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_etudiants_user")
+}
+
+model filieres {
+  id      Int       @id @default(autoincrement())
+  code    String    @unique @db.VarChar(20)
+  nom     String    @db.VarChar(100)
+  groupes groupes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model groupes {
+  id                  Int                @id @default(autoincrement())
+  nom                 String             @db.VarChar(100)
+  filiere_id          Int
+  niveau_id           Int
+  periode             String             @db.VarChar(10)
+  annee_academique_id Int
+  capacite            Int?
+  etudiants           etudiants[]
+  annees_academiques  annees_academiques @relation(fields: [annee_academique_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_groupes_annee")
+  filieres            filieres           @relation(fields: [filiere_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_groupes_filiere")
+  niveaux             niveaux            @relation(fields: [niveau_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_groupes_niveau")
+  sequences_cours     sequences_cours[]
+}
+
+model historique_modifications {
+  id                                                        Int       @id @default(autoincrement())
+  seance_id                                                 Int
+  modifie_par                                               Int
+  ancienne_date                                             DateTime? @db.Date
+  ancienne_heure_debut                                      DateTime? @db.Time(6)
+  ancienne_heure_fin                                        DateTime? @db.Time(6)
+  ancienne_salle_id                                         Int?
+  nouvelle_date                                             DateTime? @db.Date
+  nouvelle_heure_debut                                      DateTime? @db.Time(6)
+  nouvelle_heure_fin                                        DateTime? @db.Time(6)
+  nouvelle_salle_id                                         Int?
+  motif                                                     String?
+  date_modification                                         DateTime? @default(now()) @db.Timestamp(6)
+  salles_historique_modifications_ancienne_salle_idTosalles salles?   @relation("historique_modifications_ancienne_salle_idTosalles", fields: [ancienne_salle_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hist_ancienne_salle")
+  salles_historique_modifications_nouvelle_salle_idTosalles salles?   @relation("historique_modifications_nouvelle_salle_idTosalles", fields: [nouvelle_salle_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hist_nouvelle_salle")
+  seances                                                   seances   @relation(fields: [seance_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hist_seance")
+  users                                                     users     @relation(fields: [modifie_par], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hist_user")
+}
+
+model matieres {
+  id                   Int               @id @default(autoincrement())
+  code                 String            @unique @db.VarChar(20)
+  nom                  String            @db.VarChar(150)
+  ue_id                Int?
+  ua_id                Int?
+  volume_horaire_total Decimal?          @default(0) @db.Decimal(5, 2)
+  coefficient          Decimal?          @db.Decimal(4, 2)
+  uas                  uas?              @relation(fields: [ua_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_matieres_ua")
+  ues                  ues?              @relation(fields: [ue_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_matieres_ue")
+  sequences_cours      sequences_cours[]
+}
+
+model niveaux {
+  id      Int       @id @default(autoincrement())
+  code    String    @unique @db.VarChar(20)
+  libelle String    @db.VarChar(50)
+  groupes groupes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model professeurs {
+  id              Int               @id @default(autoincrement())
+  user_id         Int               @unique
+  grade           String?           @db.VarChar(100)
+  specialite      String?           @db.VarChar(150)
+  type_prof       String            @db.VarChar(20)
+  users           users             @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_professeurs_user")
+  sequences_cours sequences_cours[]
+}
+
+model roles {
+  id      Int     @id @default(autoincrement())
+  code    String  @unique @db.VarChar(50)
+  libelle String  @db.VarChar(100)
+  users   users[]
+}
+
+model salles {
+  id                                                                          Int                        @id @default(autoincrement())
+  code                                                                        String                     @unique @db.VarChar(20)
+  nom                                                                         String                     @db.VarChar(100)
+  capacite                                                                    Int?
+  type_salle_id                                                               Int
+  disponible                                                                  Boolean?                   @default(true)
+  historique_modifications_historique_modifications_ancienne_salle_idTosalles historique_modifications[] @relation("historique_modifications_ancienne_salle_idTosalles")
+  historique_modifications_historique_modifications_nouvelle_salle_idTosalles historique_modifications[] @relation("historique_modifications_nouvelle_salle_idTosalles")
+  types_salles                                                                types_salles               @relation(fields: [type_salle_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_salles_type")
+  seances                                                                     seances[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model seances {
+  id                       Int                        @id @default(autoincrement())
+  sequence_id              Int
+  salle_id                 Int
+  date_cours               DateTime                   @db.Date
+  heure_debut              DateTime                   @db.Time(6)
+  heure_fin                DateTime                   @db.Time(6)
+  statut                   String?                    @default("PLANIFIEE") @db.VarChar(20)
+  cree_par                 Int?
+  commentaire              String?
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  historique_modifications historique_modifications[]
+  users                    users?                     @relation(fields: [cree_par], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_seances_createur")
+  salles                   salles                     @relation(fields: [salle_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_seances_salle")
+  sequences_cours          sequences_cours            @relation(fields: [sequence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_seances_sequence")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sequences_cours {
+  id                  Int                @id @default(autoincrement())
+  matiere_id          Int
+  professeur_id       Int
+  groupe_id           Int
+  annee_academique_id Int
+  type_cours          String             @db.VarChar(20)
+  duree_seance        Decimal            @db.Decimal(4, 2)
+  volume_total_heures Decimal            @db.Decimal(5, 2)
+  heures_restantes    Decimal            @db.Decimal(5, 2)
+  statut              String?            @default("ACTIVE") @db.VarChar(20)
+  created_at          DateTime?          @default(now()) @db.Timestamp(6)
+  seances             seances[]
+  annees_academiques  annees_academiques @relation(fields: [annee_academique_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sequences_annee")
+  groupes             groupes            @relation(fields: [groupe_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sequences_groupe")
+  matieres            matieres           @relation(fields: [matiere_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sequences_matiere")
+  professeurs         professeurs        @relation(fields: [professeur_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sequences_professeur")
+}
+
+model types_salles {
+  id      Int      @id @default(autoincrement())
+  code    String   @unique @db.VarChar(30)
+  libelle String   @db.VarChar(100)
+  salles  salles[]
+}
+
+model uas {
+  id                  Int        @id @default(autoincrement())
+  code                String     @unique @db.VarChar(20)
+  nom                 String     @db.VarChar(150)
+  responsable_user_id Int?
+  matieres            matieres[]
+  users               users?     @relation(fields: [responsable_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_uas_responsable")
+  ues                 ues[]
+}
+
+model ues {
+  id                  Int        @id @default(autoincrement())
+  code                String     @unique @db.VarChar(20)
+  nom                 String     @db.VarChar(150)
+  ua_id               Int?
+  responsable_user_id Int?
+  matieres            matieres[]
+  users               users?     @relation(fields: [responsable_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ues_responsable")
+  uas                 uas?       @relation(fields: [ua_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ues_ua")
+}
+
+model users {
+  id                       Int                        @id @default(autoincrement())
+  nom                      String                     @db.VarChar(100)
+  prenom                   String                     @db.VarChar(100)
+  email                    String                     @unique @db.VarChar(150)
+  mot_de_passe             String                     @db.VarChar(255)
+  role_id                  Int
+  actif                    Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  etudiants                etudiants?
+  historique_modifications historique_modifications[]
+  professeurs              professeurs?
+  seances                  seances[]
+  uas                      uas[]
+  ues                      ues[]
+  roles                    roles                      @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role")
+}
